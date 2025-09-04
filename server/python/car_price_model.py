@@ -15,6 +15,70 @@ MODEL_PATH = "server/python/car_price_model.pkl"
 ENCODERS_PATH = "server/python/label_encoders.pkl"
 DATASET_PATH = "sample_data/cars.csv"
 
+# Car model production year ranges for validation
+CAR_MODEL_YEARS = {
+    "Toyota": {
+        "Camry": (1982, 2024), "Corolla": (1966, 2024), "RAV4": (1994, 2024),
+        "Prius": (1997, 2024), "Highlander": (2000, 2024), "Sienna": (1997, 2024),
+        "Tundra": (1999, 2024), "Tacoma": (1995, 2024)
+    },
+    "Honda": {
+        "Civic": (1972, 2024), "Accord": (1976, 2024), "CR-V": (1995, 2024),
+        "Pilot": (2002, 2024), "Fit": (2001, 2024), "Odyssey": (1994, 2024),
+        "Ridgeline": (2005, 2024), "HR-V": (2014, 2024)
+    },
+    "Ford": {
+        "F-150": (1975, 2024), "Explorer": (1990, 2024), "Escape": (2000, 2024),
+        "Mustang": (1964, 2024), "Focus": (1998, 2018), "Fusion": (2005, 2020),
+        "Edge": (2006, 2024), "Expedition": (1996, 2024)
+    },
+    "Chevrolet": {
+        "Silverado": (1999, 2024), "Equinox": (2004, 2024), "Malibu": (1964, 2024),
+        "Tahoe": (1995, 2024), "Cruze": (2008, 2019), "Impala": (1958, 2020),
+        "Traverse": (2008, 2024), "Suburban": (1935, 2024)
+    },
+    "Nissan": {
+        "Altima": (1992, 2024), "Sentra": (1982, 2024), "Rogue": (2007, 2024),
+        "Pathfinder": (1985, 2024), "370Z": (2008, 2020), "Maxima": (1981, 2023),
+        "Murano": (2002, 2024), "Titan": (2003, 2024)
+    },
+    "BMW": {
+        "3 Series": (1975, 2024), "5 Series": (1972, 2024), "X3": (2003, 2024),
+        "X5": (1999, 2024), "7 Series": (1977, 2024), "X1": (2009, 2024),
+        "4 Series": (2013, 2024), "2 Series": (2014, 2024)
+    },
+    "Mercedes-Benz": {
+        "C-Class": (1993, 2024), "E-Class": (1953, 2024), "GLC": (2015, 2024),
+        "GLE": (2015, 2024), "S-Class": (1972, 2024), "A-Class": (1997, 2024),
+        "GLA": (2013, 2024), "CLA": (2013, 2024)
+    },
+    "Audi": {
+        "A4": (1994, 2024), "A6": (1994, 2024), "Q5": (2008, 2024),
+        "Q7": (2005, 2024), "A3": (1996, 2024), "Q3": (2011, 2024),
+        "A5": (2007, 2024), "Q8": (2018, 2024)
+    },
+    "Volkswagen": {
+        "Jetta": (1979, 2024), "Passat": (1973, 2024), "Tiguan": (2007, 2024),
+        "Golf": (1974, 2024), "Atlas": (2017, 2024), "Beetle": (1997, 2019),
+        "Arteon": (2018, 2024), "ID.4": (2020, 2024)
+    },
+    "Subaru": {
+        "Outback": (1994, 2024), "Forester": (1997, 2024), "Impreza": (1992, 2024),
+        "Crosstrek": (2012, 2024), "Legacy": (1989, 2024), "Ascent": (2018, 2024),
+        "BRZ": (2012, 2024), "WRX": (2001, 2024)
+    },
+    "Mazda": {
+        "CX-5": (2012, 2024), "Mazda3": (2003, 2024), "CX-9": (2006, 2024),
+        "Mazda6": (2002, 2024), "CX-3": (2015, 2024), "MX-5 Miata": (1989, 2024),
+        "CX-30": (2019, 2024), "CX-50": (2022, 2024)
+    },
+    "Hyundai": {
+        "Elantra": (1990, 2024), "Tucson": (2004, 2024), "Santa Fe": (2000, 2024),
+        "Sonata": (1985, 2024), "Accent": (1994, 2024), "Palisade": (2019, 2024),
+        "Kona": (2017, 2024), "Veloster": (2011, 2022)
+    }
+}
+
 def load_or_create_sample_data():
     """Load CSV data or create sample dataset if none exists"""
     if os.path.exists(DATASET_PATH):
@@ -123,9 +187,39 @@ def train_model():
         print(f"Training failed: {e}", file=sys.stderr)
         sys.exit(1)
 
+def validate_car_model_year(year, make, model):
+    """Validate if the model existed in the given year"""
+    if make not in CAR_MODEL_YEARS:
+        return True, None  # Unknown make, allow prediction but with lower confidence
+    
+    # Check if model exists for this make
+    models_for_make = CAR_MODEL_YEARS[make]
+    if model not in models_for_make:
+        return True, None  # Unknown model, allow prediction but with lower confidence
+    
+    # Check year range
+    start_year, end_year = models_for_make[model]
+    if year < start_year or year > end_year:
+        if year < start_year:
+            return False, f"The {make} {model} was first produced in {start_year}, not {year}. Please check the model year."
+        else:
+            return False, f"The {make} {model} was discontinued in {end_year}, not available in {year}. Please check the model year."
+    
+    return True, None
+
 def predict_price(year, mileage, make, model):
     """Predict car price using trained model"""
     try:
+        # Validate car model and year combination
+        is_valid, validation_error = validate_car_model_year(year, make, model)
+        if not is_valid:
+            result = {
+                "error": "Invalid car model/year combination",
+                "message": validation_error
+            }
+            print(json.dumps(result))
+            return
+        
         # Load model and encoders
         if not os.path.exists(MODEL_PATH) or not os.path.exists(ENCODERS_PATH):
             train_model()
@@ -162,8 +256,11 @@ def predict_price(year, mileage, make, model):
         low_estimate = prediction * 0.85
         high_estimate = prediction * 1.15
         
-        # Determine confidence level
-        confidence = "high" if year >= 2015 else "medium" if year >= 2010 else "low"
+        # Determine confidence level - lower confidence for unknown make/model combinations
+        if make not in CAR_MODEL_YEARS or model not in CAR_MODEL_YEARS.get(make, {}):
+            confidence = "low"  # Unknown make/model combination
+        else:
+            confidence = "high" if year >= 2015 else "medium" if year >= 2010 else "low"
         
         result = {
             "estimated_price": round(prediction, 2),

@@ -84,7 +84,12 @@ async function predictCarPrice(carData: { year: number; mileage: number; make: s
       if (code === 0) {
         try {
           const prediction = JSON.parse(result.trim());
-          resolve(prediction);
+          // Check if the response contains a validation error
+          if (prediction.error) {
+            reject(new Error(prediction.message));
+          } else {
+            resolve(prediction);
+          }
         } catch (parseError) {
           reject(new Error("Invalid prediction response"));
         }

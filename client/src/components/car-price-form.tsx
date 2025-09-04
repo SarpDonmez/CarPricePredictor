@@ -32,7 +32,7 @@ export default function CarPriceForm({ onPrediction, isLoading, setIsLoading }: 
   });
 
   // Fetch available makes
-  const { data: makes = [] } = useQuery({
+  const { data: makes = [] } = useQuery<string[]>({
     queryKey: ["/api/makes"],
   });
 
@@ -52,10 +52,18 @@ export default function CarPriceForm({ onPrediction, isLoading, setIsLoading }: 
     },
     onError: (error: Error) => {
       setIsLoading(false);
+      // Check if it's a validation error about car model/year combination
+      const isValidationError = error.message && (
+        error.message.includes("first produced") || 
+        error.message.includes("discontinued") || 
+        error.message.includes("not available")
+      );
+      
       toast({
-        title: "Estimation Failed",
+        title: isValidationError ? "Invalid Car Information" : "Estimation Failed",
         description: error.message || "Failed to get price estimate. Please try again.",
         variant: "destructive",
+        duration: isValidationError ? 8000 : 5000, // Show validation errors longer
       });
     },
   });
