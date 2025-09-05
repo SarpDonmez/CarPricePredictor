@@ -29,6 +29,8 @@ export default function CarPriceForm({ onPrediction, isLoading, setIsLoading }: 
       mileage: 45000,
       make: "",
       model: "",
+      location: "US",
+      currency: "USD",
     },
   });
 
@@ -227,6 +229,64 @@ export default function CarPriceForm({ onPrediction, isLoading, setIsLoading }: 
                 </FormItem>
               )}
             />
+
+            {/* Location and Currency Selection */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-location">
+                          <SelectValue placeholder="Select location..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="US" data-testid="option-location-US">
+                          🇺🇸 United States
+                        </SelectItem>
+                        <SelectItem value="Canada" data-testid="option-location-Canada">
+                          🇨🇦 Canada
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-currency">
+                          <SelectValue placeholder="Select currency..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="USD" data-testid="option-currency-USD">
+                          💵 USD - US Dollar
+                        </SelectItem>
+                        <SelectItem value="CAD" data-testid="option-currency-CAD">
+                          🍁 CAD - Canadian Dollar
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Prices will be adjusted based on regional market conditions and converted to your selected currency
+            </p>
 
             {/* Submit Button */}
             <Button 

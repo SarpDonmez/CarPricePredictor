@@ -207,8 +207,38 @@ def validate_car_model_year(year, make, model):
     
     return True, None
 
-def predict_price(year, mileage, make, model):
-    """Predict car price using trained model"""
+def apply_regional_adjustments(price, location, currency):
+    """Apply regional market adjustments and currency conversion"""
+    # Regional price multipliers based on market conditions
+    regional_multipliers = {
+        "US": 1.0,      # Base price (USD market)
+        "Canada": 1.08  # Canadian market typically 8% higher due to taxes, import duties, etc.
+    }
+    
+    # Apply regional adjustment
+    adjusted_price = price * regional_multipliers.get(location, 1.0)
+    
+    # Currency conversion (approximate rates - in real app would use live rates)
+    exchange_rates = {
+        "USD": 1.0,
+        "CAD": 1.35  # 1 USD = 1.35 CAD (approximate)
+    }
+    
+    # Convert to target currency
+    if currency == "CAD" and location == "US":
+        # Converting US price to CAD
+        converted_price = adjusted_price * exchange_rates["CAD"]
+    elif currency == "USD" and location == "Canada":
+        # Converting Canadian price to USD
+        converted_price = adjusted_price / exchange_rates["CAD"]
+    else:
+        # Same currency and location, no conversion needed
+        converted_price = adjusted_price
+    
+    return converted_price
+
+def predict_price(year, mileage, make, model, location="US", currency="USD"):
+    """Predict car price using trained model with location and currency adjustments"""
     try:
         # Validate car model and year combination
         is_valid, validation_error = validate_car_model_year(year, make, model)
@@ -250,11 +280,14 @@ def predict_price(year, mileage, make, model):
         features = np.array([[year, mileage, make_encoded, model_encoded]])
         
         # Predict
-        prediction = model.predict(features)[0]
+        base_prediction = model.predict(features)[0]
+        
+        # Apply regional adjustments and currency conversion
+        adjusted_prediction = apply_regional_adjustments(base_prediction, location, currency)
         
         # Calculate confidence range (±15%)
-        low_estimate = prediction * 0.85
-        high_estimate = prediction * 1.15
+        low_estimate = adjusted_prediction * 0.85
+        high_estimate = adjusted_prediction * 1.15
         
         # Determine confidence level - lower confidence for unknown make/model combinations
         if make not in CAR_MODEL_YEARS or model not in CAR_MODEL_YEARS.get(make, {}):
@@ -263,10 +296,12 @@ def predict_price(year, mileage, make, model):
             confidence = "high" if year >= 2015 else "medium" if year >= 2010 else "low"
         
         result = {
-            "estimated_price": round(prediction, 2),
+            "estimated_price": round(adjusted_prediction, 2),
             "low_estimate": round(low_estimate, 2),
             "high_estimate": round(high_estimate, 2),
-            "confidence": confidence
+            "confidence": confidence,
+            "currency": currency,
+            "location": location
         }
         
         print(json.dumps(result))
@@ -308,16 +343,18 @@ if __name__ == "__main__":
     if command == "train":
         train_model()
     elif command == "predict":
-        if len(sys.argv) != 6:
-            print("Usage: python car_price_model.py predict <year> <mileage> <make> <model>", file=sys.stderr)
+        if len(sys.argv) < 6 or len(sys.argv) > 8:
+            print("Usage: python car_price_model.py predict <year> <mileage> <make> <model> [location] [currency]", file=sys.stderr)
             sys.exit(1)
         
         year = int(sys.argv[2])
         mileage = int(sys.argv[3])
         make = sys.argv[4]
         model = sys.argv[5]
+        location = sys.argv[6] if len(sys.argv) > 6 else "US"
+        currency = sys.argv[7] if len(sys.argv) > 7 else "USD"
         
-        predict_price(year, mileage, make, model)
+        predict_price(year, mileage, make, model, location, currency)
     elif command == "get_models":
         if len(sys.argv) != 4:
             print("Usage: python car_price_model.py get_models <make> <year>", file=sys.stderr)

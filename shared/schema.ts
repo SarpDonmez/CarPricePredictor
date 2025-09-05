@@ -32,6 +32,8 @@ export const carPredictionSchema = z.object({
   mileage: z.number().int().min(0),
   make: z.string().min(1),
   model: z.string().min(1),
+  location: z.enum(["US", "Canada"]).default("US"),
+  currency: z.enum(["USD", "CAD"]).default("USD"),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -45,4 +47,6 @@ export interface PredictionResult {
   low_estimate: number;
   high_estimate: number;
   confidence: string;
+  currency: string;
+  location: string;
 }

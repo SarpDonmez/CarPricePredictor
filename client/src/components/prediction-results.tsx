@@ -5,16 +5,19 @@ import { type PredictionResult } from "@shared/schema";
 
 interface PredictionResultsProps {
   prediction: PredictionResult | null;
-  inputData: {year: number; mileage: number; make: string; model: string} | null;
+  inputData: {year: number; mileage: number; make: string; model: string; location: string; currency: string} | null;
   isLoading: boolean;
   onReset: () => void;
 }
 
 export default function PredictionResults({ prediction, inputData, isLoading, onReset }: PredictionResultsProps) {
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
+  const formatPrice = (price: number, currency?: string) => {
+    const currencyCode = currency || prediction?.currency || 'USD';
+    const locale = currencyCode === 'CAD' ? 'en-CA' : 'en-US';
+    
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'USD',
+      currency: currencyCode,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(price);
@@ -70,7 +73,9 @@ export default function PredictionResults({ prediction, inputData, isLoading, on
                 <div className="text-4xl font-bold" data-testid="text-estimated-price">
                   {formatPrice(prediction.estimated_price)}
                 </div>
-                <p className="text-sm opacity-90 mt-1">Based on current market data</p>
+                <p className="text-sm opacity-90 mt-1">
+                  Based on {prediction.location === 'Canada' ? 'Canadian' : 'US'} market data
+                </p>
               </div>
               
               {/* Confidence Indicator */}
@@ -110,6 +115,18 @@ export default function PredictionResults({ prediction, inputData, isLoading, on
                     <span className="text-muted-foreground">Model:</span>
                     <span className="font-medium text-foreground" data-testid="text-summary-model">
                       {inputData.model}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Location:</span>
+                    <span className="font-medium text-foreground" data-testid="text-summary-location">
+                      {inputData.location === 'Canada' ? '🇨🇦 Canada' : '🇺🇸 United States'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Currency:</span>
+                    <span className="font-medium text-foreground" data-testid="text-summary-currency">
+                      {inputData.currency === 'CAD' ? '🍁 CAD' : '💵 USD'}
                     </span>
                   </div>
                 </div>
