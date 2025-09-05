@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Edit, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useEffect } from "react";
 
 interface CarPriceFormProps {
   onPrediction: (result: PredictionResult, input: CarPrediction) => void;
@@ -35,6 +36,29 @@ export default function CarPriceForm({ onPrediction, isLoading, setIsLoading }: 
   const { data: makes = [] } = useQuery<string[]>({
     queryKey: ["/api/makes"],
   });
+
+  // Watch form values to trigger model fetch
+  const selectedMake = form.watch("make");
+  const selectedYear = form.watch("year");
+
+  // Fetch available models based on selected make and year
+  const { data: models = [], isLoading: modelsLoading } = useQuery<string[]>({
+    queryKey: ["/api/models", selectedMake, selectedYear],
+    queryFn: async () => {
+      if (!selectedMake || !selectedYear) return [];
+      const response = await fetch(`/api/models?make=${encodeURIComponent(selectedMake)}&year=${selectedYear}`);
+      if (!response.ok) throw new Error('Failed to fetch models');
+      return response.json();
+    },
+    enabled: !!(selectedMake && selectedYear),
+  });
+
+  // Reset model field when make or year changes
+  useEffect(() => {
+    if (selectedMake && selectedYear) {
+      form.setValue("model", "");
+    }
+  }, [selectedMake, selectedYear, form]);
 
   const predictMutation = useMutation({
     mutationFn: async (data: CarPrediction) => {
@@ -158,21 +182,47 @@ export default function CarPriceForm({ onPrediction, isLoading, setIsLoading }: 
               )}
             />
 
-            {/* Model Input */}
+            {/* Model Dropdown */}
             <FormField
               control={form.control}
               name="model"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Model</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g., Camry, Civic, F-150"
-                      data-testid="input-model"
-                      {...field}
-                    />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">Enter the specific model name</p>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!selectedMake || !selectedYear || modelsLoading}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-model">
+                        <SelectValue 
+                          placeholder={
+                            !selectedMake || !selectedYear 
+                              ? "Select make and year first" 
+                              : modelsLoading 
+                                ? "Loading models..." 
+                                : models.length === 0 
+                                  ? "No models available" 
+                                  : "Select model..."
+                          } 
+                        />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {models.map((model: string) => (
+                        <SelectItem key={model} value={model} data-testid={`option-model-${model}`}>
+                          {model}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {!selectedMake || !selectedYear 
+                      ? "Choose a make and year to see available models" 
+                      : `Available models for ${selectedYear} ${selectedMake}`
+                    }
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

@@ -26,6 +26,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get available models filtered by make and year
+  app.get("/api/models", async (req, res) => {
+    try {
+      const { make, year } = req.query;
+      
+      if (!make || !year) {
+        return res.status(400).json({ message: "Make and year are required" });
+      }
+      
+      const models = await getFilteredModels(make as string, parseInt(year as string));
+      res.json(models);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch car models" });
+    }
+  });
+
   // Predict car price
   app.post("/api/predict", async (req, res) => {
     try {
@@ -95,6 +111,38 @@ async function predictCarPrice(carData: { year: number; mileage: number; make: s
         }
       } else {
         reject(new Error(error || "Python script failed"));
+      }
+    });
+  });
+}
+
+async function getFilteredModels(make: string, year: number): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const pythonScript = path.join(process.cwd(), "server", "python", "car_price_model.py");
+    const args = [pythonScript, "get_models", make, year.toString()];
+    
+    const python = spawn("python3", args);
+    let result = "";
+    let error = "";
+
+    python.stdout.on("data", (data) => {
+      result += data.toString();
+    });
+
+    python.stderr.on("data", (data) => {
+      error += data.toString();
+    });
+
+    python.on("close", (code) => {
+      if (code === 0) {
+        try {
+          const models = JSON.parse(result.trim());
+          resolve(models);
+        } catch (parseError) {
+          reject(new Error("Invalid models response"));
+        }
+      } else {
+        reject(new Error(error || "Failed to get models"));
       }
     });
   });

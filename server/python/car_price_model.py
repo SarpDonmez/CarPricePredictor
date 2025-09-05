@@ -275,9 +275,32 @@ def predict_price(year, mileage, make, model):
         print(f"Prediction failed: {e}", file=sys.stderr)
         sys.exit(1)
 
+def get_models_for_make_and_year(make, year):
+    """Get available models for a specific make and year"""
+    try:
+        year = int(year)
+        if make not in CAR_MODEL_YEARS:
+            print(json.dumps([]))  # Return empty list for unknown makes
+            return
+        
+        models_for_make = CAR_MODEL_YEARS[make]
+        available_models = []
+        
+        for model, (start_year, end_year) in models_for_make.items():
+            if start_year <= year <= end_year:
+                available_models.append(model)
+        
+        # Sort models alphabetically
+        available_models.sort()
+        print(json.dumps(available_models))
+        
+    except Exception as e:
+        print(f"Failed to get models: {e}", file=sys.stderr)
+        sys.exit(1)
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python car_price_model.py [train|predict] [args...]", file=sys.stderr)
+        print("Usage: python car_price_model.py [train|predict|get_models] [args...]", file=sys.stderr)
         sys.exit(1)
     
     command = sys.argv[1]
@@ -295,6 +318,15 @@ if __name__ == "__main__":
         model = sys.argv[5]
         
         predict_price(year, mileage, make, model)
+    elif command == "get_models":
+        if len(sys.argv) != 4:
+            print("Usage: python car_price_model.py get_models <make> <year>", file=sys.stderr)
+            sys.exit(1)
+        
+        make = sys.argv[2]
+        year = sys.argv[3]
+        
+        get_models_for_make_and_year(make, year)
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
         sys.exit(1)
