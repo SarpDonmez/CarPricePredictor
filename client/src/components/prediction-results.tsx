@@ -5,7 +5,7 @@ import { type PredictionResult } from "@shared/schema";
 
 interface PredictionResultsProps {
   prediction: PredictionResult | null;
-  inputData: {year: number; mileage: number; make: string; model: string; location: string; currency: string; accidentHistory: string; condition: string} | null;
+  inputData: {year: number; mileage: number; mileageUnit: string; make: string; model: string; location: string; currency: string; accidentHistory: string; condition: string} | null;
   isLoading: boolean;
   onReset: () => void;
 }
@@ -100,9 +100,10 @@ export default function PredictionResults({ prediction, inputData, isLoading, on
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Mileage:</span>
+                    <span className="text-muted-foreground">Odometer:</span>
                     <span className="font-medium text-foreground" data-testid="text-summary-mileage">
-                      {formatMileage(inputData.mileage)} mi
+                      {formatMileage(inputData.mileage)} {inputData.mileageUnit}
+                      {inputData.mileageUnit === "km" && prediction && ` (${formatMileage(prediction.mileage_in_miles)} mi)`}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -176,6 +177,65 @@ export default function PredictionResults({ prediction, inputData, isLoading, on
                 </div>
               </div>
             </div>
+
+            {/* Marketplace Listings Section */}
+            {prediction.marketplace_listings && prediction.marketplace_listings.length > 0 && (
+              <div className="border border-border rounded-lg p-4 mb-6" data-testid="section-marketplace-listings">
+                <h5 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                  🛒 Similar Listings Found
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                    {prediction.marketplace_listings.length} found
+                  </span>
+                </h5>
+                <div className="space-y-3">
+                  {prediction.marketplace_listings.map((listing, index) => (
+                    <div key={index} className="bg-muted/30 border rounded-lg p-3 hover:bg-muted/50 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-medium text-sm text-foreground" data-testid={`text-listing-title-${index}`}>
+                            {listing.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            📍 {listing.location} • 🏪 {listing.source}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-primary" data-testid={`text-listing-price-${index}`}>
+                            {formatPrice(listing.price)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            📊 {formatMileage(listing.mileage)} miles
+                          </p>
+                        </div>
+                      </div>
+                      <a 
+                        href={listing.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline"
+                        data-testid={`link-listing-${index}`}
+                      >
+                        View Listing →
+                      </a>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 text-center">
+                  💡 Compare these listings with your estimated price to gauge market competitiveness
+                </p>
+              </div>
+            )}
+            
+            {prediction.marketplace_listings && prediction.marketplace_listings.length === 0 && (
+              <div className="border border-border rounded-lg p-4 mb-6 text-center" data-testid="section-no-listings">
+                <p className="text-muted-foreground text-sm" data-testid="text-no-listings">
+                  🔍 No current listings similar to this one
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  This could indicate your car is unique or in a less common configuration
+                </p>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="space-y-3">

@@ -72,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-async function predictCarPrice(carData: { year: number; mileage: number; make: string; model: string; location: string; currency: string; accidentHistory: string; condition: string }): Promise<PredictionResult> {
+async function predictCarPrice(carData: { year: number; mileage: number; mileageUnit: string; make: string; model: string; location: string; currency: string; accidentHistory: string; condition: string }): Promise<PredictionResult> {
   return new Promise((resolve, reject) => {
     const pythonScript = path.join(process.cwd(), "server", "python", "car_price_model.py");
     const args = [
@@ -80,6 +80,7 @@ async function predictCarPrice(carData: { year: number; mileage: number; make: s
       "predict",
       carData.year.toString(),
       carData.mileage.toString(),
+      carData.mileageUnit,
       carData.make,
       carData.model,
       carData.location,

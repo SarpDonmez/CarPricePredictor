@@ -38,6 +38,10 @@ export const carPredictionSchema = z.object({
     invalid_type_error: "Mileage must be a valid number"
   }).int().min(0, "Mileage cannot be negative"),
   
+  mileageUnit: z.enum(["miles", "km"], {
+    required_error: "Please select distance unit"
+  }).default("miles"),
+  
   make: z.string({
     required_error: "Please select your car's make"
   }).min(1, "Please choose a car make from the dropdown"),
@@ -69,6 +73,17 @@ export type InsertCar = z.infer<typeof insertCarSchema>;
 export type Car = typeof cars.$inferSelect;
 export type CarPrediction = z.infer<typeof carPredictionSchema>;
 
+export interface MarketplaceListing {
+  title: string;
+  price: number;
+  mileage: number;
+  year: number;
+  location: string;
+  url: string;
+  source: string; // 'ebay', 'craigslist', etc.
+  imageUrl?: string;
+}
+
 export interface PredictionResult {
   estimated_price: number;
   low_estimate: number;
@@ -78,4 +93,6 @@ export interface PredictionResult {
   location: string;
   condition: string;
   accident_history: string;
+  mileage_in_miles: number;
+  marketplace_listings: MarketplaceListing[];
 }

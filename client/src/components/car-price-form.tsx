@@ -27,6 +27,7 @@ export default function CarPriceForm({ onPrediction, isLoading, setIsLoading }: 
     defaultValues: {
       year: 2018,
       mileage: 45000,
+      mileageUnit: "miles",
       make: "",
       model: "",
       location: "US",
@@ -137,28 +138,58 @@ export default function CarPriceForm({ onPrediction, isLoading, setIsLoading }: 
               )}
             />
 
-            {/* Mileage Input */}
-            <FormField
-              control={form.control}
-              name="mileage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Mileage</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="45000"
-                      data-testid="input-mileage"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">Current odometer reading in miles</p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Mileage Input with Unit Selection */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="mileage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Odometer Reading</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="45000"
+                        data-testid="input-mileage"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="mileageUnit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Distance Unit</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-mileage-unit">
+                          <SelectValue placeholder="Select unit..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="miles" data-testid="option-unit-miles">
+                          🇺🇸 Miles
+                        </SelectItem>
+                        <SelectItem value="km" data-testid="option-unit-km">
+                          🌍 Kilometers
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Current odometer reading on your vehicle
+            </p>
 
             {/* Make Dropdown */}
             <FormField
