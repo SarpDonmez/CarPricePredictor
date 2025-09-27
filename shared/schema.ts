@@ -28,12 +28,31 @@ export const insertCarSchema = createInsertSchema(cars).omit({
 });
 
 export const carPredictionSchema = z.object({
-  year: z.number().int().min(1990).max(2024),
-  mileage: z.number().int().min(0),
-  make: z.string().min(1),
-  model: z.string().min(1),
-  location: z.enum(["US", "Canada"]).default("US"),
-  currency: z.enum(["USD", "CAD"]).default("USD"),
+  year: z.number({
+    required_error: "Please enter the year of your car",
+    invalid_type_error: "Year must be a valid number"
+  }).int().min(1990, "Year must be 1990 or later").max(2024, "Year cannot be later than 2024"),
+  
+  mileage: z.number({
+    required_error: "Please enter your car's mileage",
+    invalid_type_error: "Mileage must be a valid number"
+  }).int().min(0, "Mileage cannot be negative"),
+  
+  make: z.string({
+    required_error: "Please select your car's make"
+  }).min(1, "Please choose a car make from the dropdown"),
+  
+  model: z.string({
+    required_error: "Please select your car's model"
+  }).min(1, "Please choose a car model from the dropdown"),
+  
+  location: z.enum(["US", "Canada"], {
+    required_error: "Please select a location"
+  }).default("US"),
+  
+  currency: z.enum(["USD", "CAD"], {
+    required_error: "Please select a currency"
+  }).default("USD"),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
