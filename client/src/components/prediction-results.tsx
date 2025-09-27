@@ -5,7 +5,7 @@ import { type PredictionResult } from "@shared/schema";
 
 interface PredictionResultsProps {
   prediction: PredictionResult | null;
-  inputData: {year: number; mileage: number; make: string; model: string; location: string; currency: string} | null;
+  inputData: {year: number; mileage: number; make: string; model: string; location: string; currency: string; accidentHistory: string; condition: string} | null;
   isLoading: boolean;
   onReset: () => void;
 }
@@ -127,6 +127,25 @@ export default function PredictionResults({ prediction, inputData, isLoading, on
                     <span className="text-muted-foreground">Currency:</span>
                     <span className="font-medium text-foreground" data-testid="text-summary-currency">
                       {inputData.currency === 'CAD' ? '🍁 CAD' : '💵 USD'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Condition:</span>
+                    <span className="font-medium text-foreground" data-testid="text-summary-condition">
+                      {inputData.condition === 'Excellent' ? '⭐ Excellent' : 
+                       inputData.condition === 'Good' ? '👍 Good' :
+                       inputData.condition === 'Fair' ? '👌 Fair' :
+                       inputData.condition === 'Poor' ? '👎 Poor' :
+                       '🔧 Parts only/Salvage'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Accidents:</span>
+                    <span className="font-medium text-foreground" data-testid="text-summary-accidents">
+                      {inputData.accidentHistory === 'None' ? '✅ No Accidents' : 
+                       inputData.accidentHistory === 'Minor (1-2)' ? '⚠️ Minor (1-2)' :
+                       inputData.accidentHistory === 'Major (3+)' ? '🚨 Major (3+)' :
+                       '💥 Serious/Total Loss'}
                     </span>
                   </div>
                 </div>

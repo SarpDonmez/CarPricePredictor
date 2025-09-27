@@ -207,6 +207,31 @@ def validate_car_model_year(year, make, model):
     
     return True, None
 
+def apply_condition_adjustments(price, condition, accident_history):
+    """Apply adjustments based on vehicle condition and accident history"""
+    # Condition multipliers
+    condition_multipliers = {
+        "Excellent": 1.15,  # 15% premium for excellent condition
+        "Good": 1.0,        # Base price for good condition
+        "Fair": 0.85,       # 15% reduction for fair condition
+        "Poor": 0.65,       # 35% reduction for poor condition
+        "Parts only/Salvage": 0.15  # Only salvage value
+    }
+    
+    # Accident history multipliers
+    accident_multipliers = {
+        "None": 1.0,              # No reduction for clean history
+        "Minor (1-2)": 0.92,      # 8% reduction for minor accidents
+        "Major (3+)": 0.78,       # 22% reduction for major accidents
+        "Serious/Total Loss": 0.25 # Heavily reduced for serious damage
+    }
+    
+    # Apply both adjustments
+    condition_adjusted = price * condition_multipliers.get(condition, 1.0)
+    final_price = condition_adjusted * accident_multipliers.get(accident_history, 1.0)
+    
+    return final_price
+
 def apply_regional_adjustments(price, location, currency):
     """Apply regional market adjustments and currency conversion"""
     # Regional price multipliers based on market conditions
@@ -237,8 +262,8 @@ def apply_regional_adjustments(price, location, currency):
     
     return converted_price
 
-def predict_price(year, mileage, make, model, location="US", currency="USD"):
-    """Predict car price using trained model with location and currency adjustments"""
+def predict_price(year, mileage, make, model, location="US", currency="USD", accident_history="None", condition="Good"):
+    """Predict car price using trained model with all adjustments"""
     try:
         # Validate car model and year combination
         is_valid, validation_error = validate_car_model_year(year, make, model)
@@ -282,8 +307,11 @@ def predict_price(year, mileage, make, model, location="US", currency="USD"):
         # Predict
         base_prediction = model.predict(features)[0]
         
+        # Apply condition and accident history adjustments first
+        condition_adjusted = apply_condition_adjustments(base_prediction, condition, accident_history)
+        
         # Apply regional adjustments and currency conversion
-        adjusted_prediction = apply_regional_adjustments(base_prediction, location, currency)
+        adjusted_prediction = apply_regional_adjustments(condition_adjusted, location, currency)
         
         # Calculate confidence range (±15%)
         low_estimate = adjusted_prediction * 0.85
@@ -301,7 +329,9 @@ def predict_price(year, mileage, make, model, location="US", currency="USD"):
             "high_estimate": round(high_estimate, 2),
             "confidence": confidence,
             "currency": currency,
-            "location": location
+            "location": location,
+            "condition": condition,
+            "accident_history": accident_history
         }
         
         print(json.dumps(result))
@@ -343,8 +373,8 @@ if __name__ == "__main__":
     if command == "train":
         train_model()
     elif command == "predict":
-        if len(sys.argv) < 6 or len(sys.argv) > 8:
-            print("Usage: python car_price_model.py predict <year> <mileage> <make> <model> [location] [currency]", file=sys.stderr)
+        if len(sys.argv) < 6 or len(sys.argv) > 10:
+            print("Usage: python car_price_model.py predict <year> <mileage> <make> <model> [location] [currency] [accident_history] [condition]", file=sys.stderr)
             sys.exit(1)
         
         year = int(sys.argv[2])
@@ -353,8 +383,10 @@ if __name__ == "__main__":
         model = sys.argv[5]
         location = sys.argv[6] if len(sys.argv) > 6 else "US"
         currency = sys.argv[7] if len(sys.argv) > 7 else "USD"
+        accident_history = sys.argv[8] if len(sys.argv) > 8 else "None"
+        condition = sys.argv[9] if len(sys.argv) > 9 else "Good"
         
-        predict_price(year, mileage, make, model, location, currency)
+        predict_price(year, mileage, make, model, location, currency, accident_history, condition)
     elif command == "get_models":
         if len(sys.argv) != 4:
             print("Usage: python car_price_model.py get_models <make> <year>", file=sys.stderr)

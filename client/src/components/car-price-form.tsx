@@ -31,6 +31,8 @@ export default function CarPriceForm({ onPrediction, isLoading, setIsLoading }: 
       model: "",
       location: "US",
       currency: "USD",
+      accidentHistory: "None",
+      condition: "Good",
     },
   });
 
@@ -286,6 +288,79 @@ export default function CarPriceForm({ onPrediction, isLoading, setIsLoading }: 
             </div>
             <p className="text-xs text-muted-foreground text-center">
               Prices will be adjusted based on regional market conditions and converted to your selected currency
+            </p>
+
+            {/* Accident History and Condition */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="accidentHistory"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Accident History</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-accident-history">
+                          <SelectValue placeholder="Select accident history..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="None" data-testid="option-accident-none">
+                          ✅ No Accidents
+                        </SelectItem>
+                        <SelectItem value="Minor (1-2)" data-testid="option-accident-minor">
+                          ⚠️ Minor (1-2)
+                        </SelectItem>
+                        <SelectItem value="Major (3+)" data-testid="option-accident-major">
+                          🚨 Major (3+)
+                        </SelectItem>
+                        <SelectItem value="Serious/Total Loss" data-testid="option-accident-serious">
+                          💥 Serious/Total Loss
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="condition"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vehicle Condition</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-condition">
+                          <SelectValue placeholder="Select condition..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Excellent" data-testid="option-condition-excellent">
+                          ⭐ Excellent
+                        </SelectItem>
+                        <SelectItem value="Good" data-testid="option-condition-good">
+                          👍 Good
+                        </SelectItem>
+                        <SelectItem value="Fair" data-testid="option-condition-fair">
+                          👌 Fair
+                        </SelectItem>
+                        <SelectItem value="Poor" data-testid="option-condition-poor">
+                          👎 Poor
+                        </SelectItem>
+                        <SelectItem value="Parts only/Salvage" data-testid="option-condition-salvage">
+                          🔧 Parts only/Salvage
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Vehicle condition and accident history significantly impact market value
             </p>
 
             {/* Submit Button */}

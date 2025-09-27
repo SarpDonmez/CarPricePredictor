@@ -53,6 +53,14 @@ export const carPredictionSchema = z.object({
   currency: z.enum(["USD", "CAD"], {
     required_error: "Please select a currency"
   }).default("USD"),
+  
+  accidentHistory: z.enum(["None", "Minor (1-2)", "Major (3+)", "Serious/Total Loss"], {
+    required_error: "Please select accident history"
+  }).default("None"),
+  
+  condition: z.enum(["Excellent", "Good", "Fair", "Poor", "Parts only/Salvage"], {
+    required_error: "Please select vehicle condition"
+  }).default("Good"),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -68,4 +76,6 @@ export interface PredictionResult {
   confidence: string;
   currency: string;
   location: string;
+  condition: string;
+  accident_history: string;
 }
