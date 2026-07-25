@@ -75,13 +75,13 @@ export type CarPrediction = z.infer<typeof carPredictionSchema>;
 
 export interface MarketplaceListing {
   title: string;
-  price: number;
-  mileage: number;
-  year: number;
-  location: string;
+  price: number | null;
+  mileage: number | null;
+  year?: number | null;
+  location: string | null;
   url: string;
   source: string; // 'ebay', 'craigslist', etc.
-  imageUrl?: string;
+  imageUrl?: string | null;
 }
 
 export interface PredictionResult {

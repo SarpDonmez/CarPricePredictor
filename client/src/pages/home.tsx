@@ -2,21 +2,51 @@ import { Car } from "lucide-react";
 import CarPriceForm from "@/components/car-price-form";
 import PredictionResults from "@/components/prediction-results";
 import { useState } from "react";
-import { type PredictionResult } from "@shared/schema";
+import { type CarPrediction, type MarketplaceListing, type PredictionResult } from "@shared/schema";
 
 export default function Home() {
   const [prediction, setPrediction] = useState<PredictionResult | null>(null);
+  const [similarListings, setSimilarListings] = useState<MarketplaceListing[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [inputData, setInputData] = useState<{year: number; mileage: number; make: string; model: string} | null>(null);
 
-  const handlePrediction = (result: PredictionResult, input: {year: number; mileage: number; make: string; model: string}) => {
+  const [inputData, setInputData] = useState<CarPrediction | null>(null);
+
+  const handlePrediction = async (result: PredictionResult, input: CarPrediction) => {
     setPrediction(result);
     setInputData(input);
+    setSimilarListings(null);
+
+    // Fetch similar listings
+    try {
+      const simRes = await fetch("/api/similar-listings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          make: input.make,
+          model: input.model,
+          year: input.year,
+          mileage: input.mileage,
+          mileageUnit: input.mileageUnit,
+          location: input.location,
+        }),
+      });
+
+      if (!simRes.ok) {
+        throw new Error("Failed to fetch similar listings");
+      }
+
+      const similar = await simRes.json();
+      setSimilarListings(Array.isArray(similar) ? similar : []);
+    } catch (error) {
+      console.error("Failed to fetch similar listings:", error);
+      setSimilarListings([]);
+    }
   };
 
   const handleReset = () => {
     setPrediction(null);
     setInputData(null);
+    setSimilarListings(null);
     setIsLoading(false);
   };
 
@@ -48,27 +78,29 @@ export default function Home() {
             Estimate Your Car's Value
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto" data-testid="text-hero-description">
-            Our advanced machine learning model analyzes thousands of car sales to provide accurate price estimates based on year, mileage, make, and model.
+            Our advanced machine learning model analyzes thousands of car sales to provide accurate price
+            estimates based on year, mileage, make, and model.
           </p>
         </div>
 
         {/* Main Content Grid */}
         <div className="grid lg:grid-cols-2 gap-8">
-          <CarPriceForm 
+          <CarPriceForm
             onPrediction={handlePrediction}
             isLoading={isLoading}
             setIsLoading={setIsLoading}
           />
-          
-          <PredictionResults 
+
+          <PredictionResults
             prediction={prediction}
             inputData={inputData}
+            similarListings={similarListings}
             isLoading={isLoading}
             onReset={handleReset}
           />
         </div>
 
-        {/* Model Information Section */}
+        {/* Model Info */}
         <div className="mt-12 bg-card rounded-lg border border-border p-6">
           <div className="flex items-center gap-2 mb-4">
             <i className="fas fa-brain text-primary"></i>
@@ -76,6 +108,7 @@ export default function Home() {
               About Our Model
             </h3>
           </div>
+
           <div className="grid md:grid-cols-3 gap-6 text-center">
             <div>
               <div className="bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -86,50 +119,51 @@ export default function Home() {
                 Trained on thousands of real car sales transactions
               </p>
             </div>
+
             <div>
               <div className="bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
                 <i className="fas fa-cogs text-primary"></i>
               </div>
               <h4 className="font-medium text-foreground mb-1">Algorithm</h4>
-              <p className="text-sm text-muted-foreground">
-                Random Forest regression for accurate predictions
-              </p>
+              <p className="text-sm text-muted-foreground">Random Forest regression for accurate predictions</p>
             </div>
+
             <div>
               <div className="bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
                 <i className="fas fa-sync text-primary"></i>
               </div>
               <h4 className="font-medium text-foreground mb-1">Updates</h4>
-              <p className="text-sm text-muted-foreground">
-                Regularly updated with fresh market data
-              </p>
+              <p className="text-sm text-muted-foreground">Regularly updated with fresh market data</p>
             </div>
           </div>
         </div>
 
-        {/* FAQ Section */}
+        {/* FAQ */}
         <div className="mt-8 bg-card rounded-lg border border-border p-6">
           <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <i className="fas fa-question-circle text-primary"></i>
             Frequently Asked Questions
           </h3>
+
           <div className="space-y-4">
             <div className="border-b border-border pb-4">
               <h4 className="font-medium text-foreground mb-2">How accurate are the estimates?</h4>
               <p className="text-sm text-muted-foreground">
-                Our model achieves 85-90% accuracy on test data, with most estimates within 10% of actual selling prices.
+                Our model achieves 85–90% accuracy on test data, with most estimates within 10% of actual selling prices.
               </p>
             </div>
+
             <div className="border-b border-border pb-4">
               <h4 className="font-medium text-foreground mb-2">What factors affect the price?</h4>
               <p className="text-sm text-muted-foreground">
                 Year, mileage, make, and model are the primary factors. Condition, location, and market demand also influence actual prices.
               </p>
             </div>
+
             <div>
               <h4 className="font-medium text-foreground mb-2">Can I upload my own dataset?</h4>
               <p className="text-sm text-muted-foreground">
-                Yes! Check our README file for instructions on uploading custom CSV datasets with the required columns.
+                Yes! Check our README for instructions on uploading custom CSV datasets with the required columns.
               </p>
             </div>
           </div>

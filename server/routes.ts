@@ -3,20 +3,44 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { carPredictionSchema, type PredictionResult } from "@shared/schema";
 import { spawn } from "child_process";
+import { z } from "zod";
 import path from "path";
+import fs from "fs";
+
+const similarListingsSchema = z.object({
+  year: z.coerce.number().int().min(1900).max(2030),
+  mileage: z.coerce.number().min(0),
+  mileageUnit: z.enum(["miles", "km"]).default("miles"),
+  make: z.string().min(1),
+  model: z.string().min(1),
+  location: z.string().min(1).default("US"),
+});
+
+type SimilarListingsRequest = z.infer<typeof similarListingsSchema>;
+
+function getPythonCommand() {
+  if (process.env.PYTHON_BIN) {
+    return process.env.PYTHON_BIN;
+  }
+
+  const venvPython = path.join(process.cwd(), ".venv", "bin", "python");
+  return fs.existsSync(venvPython) ? venvPython : "python3";
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
+
+  // -----------------------------
   // Get available car makes
-  app.get("/api/makes", async (req, res) => {
+  // -----------------------------
+  app.get("/api/makes", async (_req, res) => {
     try {
       const makes = await storage.getCarMakes();
-      // If no makes in storage, return common makes
+
       if (makes.length === 0) {
         const commonMakes = [
-          "Toyota", "Honda", "Ford", "Chevrolet", "Nissan", 
-          "BMW", "Mercedes-Benz", "Audi", "Volkswagen", "Subaru", 
-          "Mazda", "Hyundai", "Kia", "Lexus", "Acura"
+          "Toyota","Honda","Ford","Chevrolet","Nissan","BMW","Mercedes-Benz",
+          "Audi","Volkswagen","Subaru","Mazda","Hyundai","Kia","Tesla","Rivian",
+          "Lucid","Polestar","Fisker","NIO","BYD","Xpeng","Volvo","Genesis"
         ];
         return res.json(commonMakes);
       }
@@ -26,15 +50,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get available models filtered by make and year
+  // -----------------------------
+  // Get models filtered by make and year
+  // -----------------------------
   app.get("/api/models", async (req, res) => {
     try {
       const { make, year } = req.query;
-      
+
       if (!make || !year) {
         return res.status(400).json({ message: "Make and year are required" });
       }
-      
+
       const models = await getFilteredModels(make as string, parseInt(year as string));
       res.json(models);
     } catch (error) {
@@ -42,11 +68,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // -----------------------------
   // Predict car price
+  // -----------------------------
   app.post("/api/predict", async (req, res) => {
     try {
-      const validatedData = carPredictionSchema.parse(req.body);
-      
+      // Validate request and allow optional link/image
+      const validatedData = carPredictionSchema
+        .extend({ link: z.string().optional(), image: z.string().optional() })
+        .parse(req.body);
       const prediction = await predictCarPrice(validatedData);
       res.json(prediction);
     } catch (error) {
@@ -58,8 +88,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Train model endpoint (for initial setup)
-  app.post("/api/train", async (req, res) => {
+  // -----------------------------
+  // Train model
+  // -----------------------------
+  app.post("/api/train", async (_req, res) => {
     try {
       await trainModel();
       res.json({ message: "Model trained successfully" });
@@ -68,11 +100,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // -----------------------------
+  // Get similar listings from Craigslist
+  // -----------------------------
+  app.post("/api/similar-listings", async (req, res) => {
+    try {
+      const request = similarListingsSchema.parse(req.body);
+      const listings = await getSimilarListings(request);
+      res.json(listings);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to fetch similar listings" });
+    }
+  });
+
+  // -----------------------------
+  // Create HTTP server
+  // -----------------------------
   const httpServer = createServer(app);
   return httpServer;
 }
 
-async function predictCarPrice(carData: { year: number; mileage: number; mileageUnit: string; make: string; model: string; location: string; currency: string; accidentHistory: string; condition: string }): Promise<PredictionResult> {
+// -----------------------------
+// Helper: Get similar listings
+// -----------------------------
+async function getSimilarListings(carData: SimilarListingsRequest): Promise<unknown[]> {
+  return new Promise((resolve, reject) => {
+    const pythonScript = path.join(process.cwd(), "server", "python", "car_price_model.py");
+    const python = spawn(getPythonCommand(), [
+      pythonScript,
+      "similar",
+      carData.make,
+      carData.model,
+      carData.year.toString(),
+      carData.mileage.toString(),
+      carData.mileageUnit,
+      carData.location,
+    ]);
+
+    let result = "";
+    let error = "";
+    let timedOut = false;
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      python.kill("SIGTERM");
+    }, 20000);
+
+    python.stdout.on("data", (data) => { result += data.toString(); });
+    python.stderr.on("data", (data) => { error += data.toString(); });
+
+    python.on("close", (code) => {
+      clearTimeout(timeout);
+
+      if (timedOut) {
+        reject(new Error("Similar listings request timed out"));
+        return;
+      }
+
+      if (code !== 0) {
+        reject(new Error(error || "Similar listings script failed"));
+        return;
+      }
+
+      try {
+        const listings = JSON.parse(result.trim() || "[]");
+        if (!Array.isArray(listings)) {
+          reject(new Error("Similar listings response was not an array"));
+          return;
+        }
+        resolve(listings);
+      } catch {
+        reject(new Error(error || "Invalid similar listings response"));
+      }
+    });
+  });
+}
+
+// -----------------------------
+// Helper: Predict car price
+// -----------------------------
+async function predictCarPrice(carData: any): Promise<PredictionResult> {
   return new Promise((resolve, reject) => {
     const pythonScript = path.join(process.cwd(), "server", "python", "car_price_model.py");
     const args = [
@@ -89,29 +199,20 @@ async function predictCarPrice(carData: { year: number; mileage: number; mileage
       carData.condition
     ];
 
-    const python = spawn("python3", args);
+    const python = spawn(getPythonCommand(), args);
     let result = "";
     let error = "";
 
-    python.stdout.on("data", (data) => {
-      result += data.toString();
-    });
-
-    python.stderr.on("data", (data) => {
-      error += data.toString();
-    });
+    python.stdout.on("data", (data) => { result += data.toString(); });
+    python.stderr.on("data", (data) => { error += data.toString(); });
 
     python.on("close", (code) => {
       if (code === 0) {
         try {
           const prediction = JSON.parse(result.trim());
-          // Check if the response contains a validation error
-          if (prediction.error) {
-            reject(new Error(prediction.message));
-          } else {
-            resolve(prediction);
-          }
-        } catch (parseError) {
+          if (prediction.error) reject(new Error(prediction.message));
+          else resolve(prediction);
+        } catch {
           reject(new Error("Invalid prediction response"));
         }
       } else {
@@ -121,55 +222,44 @@ async function predictCarPrice(carData: { year: number; mileage: number; mileage
   });
 }
 
+// -----------------------------
+// Helper: Get filtered models
+// -----------------------------
 async function getFilteredModels(make: string, year: number): Promise<string[]> {
   return new Promise((resolve, reject) => {
     const pythonScript = path.join(process.cwd(), "server", "python", "car_price_model.py");
     const args = [pythonScript, "get_models", make, year.toString()];
-    
-    const python = spawn("python3", args);
+
+    const python = spawn(getPythonCommand(), args);
     let result = "";
     let error = "";
 
-    python.stdout.on("data", (data) => {
-      result += data.toString();
-    });
-
-    python.stderr.on("data", (data) => {
-      error += data.toString();
-    });
+    python.stdout.on("data", (data) => { result += data.toString(); });
+    python.stderr.on("data", (data) => { error += data.toString(); });
 
     python.on("close", (code) => {
       if (code === 0) {
-        try {
-          const models = JSON.parse(result.trim());
-          resolve(models);
-        } catch (parseError) {
-          reject(new Error("Invalid models response"));
-        }
-      } else {
-        reject(new Error(error || "Failed to get models"));
-      }
+        try { resolve(JSON.parse(result.trim())); }
+        catch { reject(new Error("Invalid models response")); }
+      } else { reject(new Error(error || "Failed to get models")); }
     });
   });
 }
 
+// -----------------------------
+// Helper: Train model
+// -----------------------------
 async function trainModel(): Promise<void> {
   return new Promise((resolve, reject) => {
     const pythonScript = path.join(process.cwd(), "server", "python", "car_price_model.py");
-    const python = spawn("python3", [pythonScript, "train"]);
-    
-    let error = "";
+    const python = spawn(getPythonCommand(), [pythonScript, "train"]);
 
-    python.stderr.on("data", (data) => {
-      error += data.toString();
-    });
+    let error = "";
+    python.stderr.on("data", (data) => { error += data.toString(); });
 
     python.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(error || "Model training failed"));
-      }
+      if (code === 0) resolve();
+      else reject(new Error(error || "Model training failed"));
     });
   });
 }
