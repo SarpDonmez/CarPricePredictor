@@ -64,8 +64,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const models = await getFilteredModels(make as string, parseInt(year as string));
       res.json(models);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch car models" });
-    }
+        console.error("MODEL FETCH ERROR:", error);
+        res.status(500).json({
+          message: "Failed to fetch car models",
+          error: String(error)
+        });
+      }
   });
 
   // -----------------------------
