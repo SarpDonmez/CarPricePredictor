@@ -20,6 +20,7 @@ It trains a RandomForestRegressor to estimate car prices using features:
 import sys
 import json
 import pickle
+from huggingface_hub import hf_hub_download
 import os
 from pathlib import Path
 import requests
@@ -29,10 +30,30 @@ import time
 import math
 from urllib.parse import quote_plus, urljoin
 
-# Paths (adjust as needed)
+# Model paths
 MODEL_PATH = "server/python/car_price_model.pkl"
 ENCODERS_PATH = "server/python/label_encoders.pkl"
-DATASET_PATH = "/Users/sarpshark/Desktop/CarPricePredictor/sample_data/cars.csv"
+
+# Download model files from Hugging Face if they are not available locally
+if not os.path.exists(MODEL_PATH):
+    MODEL_PATH = hf_hub_download(
+        repo_id="SarpShark/car-price-predictor-model",
+        filename="car_price_model.pkl"
+    )
+
+if not os.path.exists(ENCODERS_PATH):
+    ENCODERS_PATH = hf_hub_download(
+        repo_id="SarpShark/car-price-predictor-model",
+        filename="label_encoders.pkl"
+    )
+
+# Dataset path
+DATASET_PATH = os.path.join(
+    os.getcwd(),
+    "sample_data",
+    "cars.csv"
+)
+
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 SEARCH_PATH = "/search/cta"
 
