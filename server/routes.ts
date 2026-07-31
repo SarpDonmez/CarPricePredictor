@@ -239,9 +239,14 @@ async function getFilteredModels(make: string, year: number): Promise<string[]> 
 
     python.on("close", (code) => {
       if (code === 0) {
-        try { resolve(JSON.parse(result.trim())); }
-        catch { reject(new Error("Invalid models response")); }
-      } else { reject(new Error(error || "Failed to get models")); }
+        try {
+          resolve(JSON.parse(result.trim()));
+        } catch (err) {
+          reject(new Error(`Invalid models response. Output: ${result}. Error: ${err}`));
+        }
+      } else {
+        reject(new Error(`Python failed with code ${code}. Error: ${error}`));
+      }
     });
   });
 }
