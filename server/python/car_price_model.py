@@ -35,17 +35,20 @@ MODEL_PATH = "server/python/car_price_model.pkl"
 ENCODERS_PATH = "server/python/label_encoders.pkl"
 
 # Download model files from Hugging Face if they are not available locally
-if not os.path.exists(MODEL_PATH):
-    MODEL_PATH = hf_hub_download(
-        repo_id="SarpShark/car-price-predictor-model",
-        filename="car_price_model.pkl"
-    )
+def ensure_model_files():
+    global MODEL_PATH, ENCODERS_PATH
 
-if not os.path.exists(ENCODERS_PATH):
-    ENCODERS_PATH = hf_hub_download(
-        repo_id="SarpShark/car-price-predictor-model",
-        filename="label_encoders.pkl"
-    )
+    if not os.path.exists(MODEL_PATH):
+        MODEL_PATH = hf_hub_download(
+            repo_id="SarpShark/car-price-predictor-model",
+            filename="car_price_model.pkl"
+        )
+
+    if not os.path.exists(ENCODERS_PATH):
+        ENCODERS_PATH = hf_hub_download(
+            repo_id="SarpShark/car-price-predictor-model",
+            filename="label_encoders.pkl"
+        )
 
 # Dataset path
 DATASET_PATH = os.path.join(
@@ -795,6 +798,9 @@ def predict_price(year, odometer, odometer_unit, make, model, location="US", cur
             result = {"error": "Invalid car model/year combination", "message": validation_error}
             print(json.dumps(result))
             return
+
+        # Download model files only when prediction actually needs them
+        ensure_model_files()
 
         # Train model if needed
         if not os.path.exists(MODEL_PATH) or not os.path.exists(ENCODERS_PATH):
